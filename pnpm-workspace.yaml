@@ -1,2 +1,4 @@
+packages:
+  - "."
 minimumReleaseAgeExclude:
   - eve@1.0.0-rc.9
