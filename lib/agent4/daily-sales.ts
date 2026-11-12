@@ -1,19 +1,24 @@
-// Workflow with plain code steps, no model calls. Each "use step" function is one fixed step.
+// Workflow with plain code steps and no model calls. It reads the same WooCommerce orders as the Eve KPI tool.
+import { fetchWooOrders } from "../woo/orders";
+
 export async function dailySalesReview(date: string) {
   "use workflow";
-  const sales = await fetchSales(date);
-  const summary = await summarize(sales);
+  const orders = await fetchSales(date);
+  const summary = await summarize(orders);
   return { status: "completed", date, summary };
 }
 
-// Step: fetch data. Replace the example rows with your real API call.
+// Step: load the day's orders from WooCommerce.
 async function fetchSales(date: string) {
   "use step";
-  return [{ amount: 100 }, { amount: 250 }];
+  return await fetchWooOrders(date, date);
 }
 
-// Step: plain calculation, no AI.
-async function summarize(sales: { amount: number }[]) {
+// Step: plain totals, no AI.
+async function summarize(orders: { total: string }[]) {
   "use step";
-  return { total: sales.reduce((sum, s) => sum + s.amount, 0), orders: sales.length };
+  return {
+    total: orders.reduce((sum, o) => sum + Number(o.total), 0),
+    orders: orders.length,
+  };
 }
