@@ -19,7 +19,11 @@ const litellm = createOpenAICompatible({
 export default defineAgent({
   model: defineDynamic((ctx) =>
     ctx.session.auth.initiator?.attributes.client === "atomic-chat"
-      ? { model: litellm("qwen3.8-4b-q4"), modelContextWindowTokens: 32_768 }
+      ? {
+          model: litellm("qwen3.8-4b-q4"),
+          modelContextWindowTokens: 32_768,
+          modelOptions: { providerOptions: { litellm: { chat_template_kwargs: { enable_thinking: false } } } },
+        }
       : { model: openrouter("qwen/qwen3.6-flash"), modelContextWindowTokens: 128_000 },
   ),
 });
