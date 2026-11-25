@@ -1,6 +1,7 @@
-// agent/agent.ts: Sets the agent to use the OpenRouter Qwen model, with its context size.
+// Uses the company LocalAI model for Atomic Chat sessions and keeps OpenRouter for everything else.
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { defineAgent } from "eve";
+import { defineDynamic } from "eve/models";
 
 const openrouter = createOpenAICompatible({
   name: "openrouter",
@@ -8,7 +9,16 @@ const openrouter = createOpenAICompatible({
   apiKey: process.env.OPENROUTER_API_KEY,
 });
 
+const litellm = createOpenAICompatible({
+  name: "litellm",
+  baseURL: process.env.LITELLM_BASE_URL!,
+  apiKey: process.env.LITELLM_API_KEY,
+});
+
 export default defineAgent({
-  model: openrouter("qwen/qwen3.6-flash"),
-  modelContextWindowTokens: 128_000,
+  model: defineDynamic((ctx) =>
+    ctx.session.auth.initiator?.attributes.client === "atomic-chat"
+      ? { model: litellm("qwen3.8-4b-q4"), modelContextWindowTokens: 32_768 }
+      : { model: openrouter("qwen/qwen3.6-flash"), modelContextWindowTokens: 128_000 },
+  ),
 });
