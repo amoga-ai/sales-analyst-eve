@@ -13,6 +13,7 @@ const litellm = createOpenAICompatible({
   name: "litellm",
   baseURL: process.env.LITELLM_BASE_URL!,
   apiKey: process.env.LITELLM_API_KEY,
+  transformRequestBody: (body) => ({ ...body, chat_template_kwargs: { enable_thinking: false } }),
 });
 
 export default defineAgent({
