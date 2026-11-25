@@ -14,6 +14,7 @@ type Chat = { sessionId: string; cursor: number; pending?: string };
 const MODEL_ID = "eve-sales-analyst";
 // Keeps each chat's Eve session, keyed by the chat's first message. Resets when the app redeploys.
 const chats = new Map<string, Chat>();
+const eveUrl = (path: string) => new URL(path, "http://localhost:3000");
 
 // Checks the Atomic Chat key sent as a Bearer token.
 function authorized(request: Request): boolean {
@@ -34,7 +35,7 @@ function transcript(messages: ChatMessage[]): string {
 
 // Creates a new Eve session with the first message and returns its ID.
 async function createSession(request: Request, message: string): Promise<string> {
-  const res = await fetch(new URL("/eve/v1/session", request.url), {
+  const res = await fetch(eveUrl("/eve/v1/session"), {
     method: "POST",
     headers: { Authorization: request.headers.get("authorization") ?? "", "Content-Type": "application/json" },
     body: JSON.stringify({ message }),
@@ -45,7 +46,7 @@ async function createSession(request: Request, message: string): Promise<string>
 
 // Sends a follow-up message or an approval answer to an existing Eve session.
 async function postToSession(request: Request, sessionId: string, body: unknown): Promise<void> {
-  const res = await fetch(new URL(`/eve/v1/session/${sessionId}`, request.url), {
+  const res = await fetch(eveUrl(`/eve/v1/session/${sessionId}`), {
     method: "POST",
     headers: { Authorization: request.headers.get("authorization") ?? "", "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -57,7 +58,7 @@ async function postToSession(request: Request, sessionId: string, body: unknown)
 async function* readReply(request: Request, chat: Chat): AsyncGenerator<string> {
   const auth = request.headers.get("authorization") ?? "";
   for (;;) {
-    const res = await fetch(new URL(`/eve/v1/session/${chat.sessionId}/stream?startIndex=${chat.cursor}`, request.url), {
+    const res = await fetch(eveUrl(`/eve/v1/session/${chat.sessionId}/stream?startIndex=${chat.cursor}`), {
       headers: { Authorization: auth },
     });
     const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
