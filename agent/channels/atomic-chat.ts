@@ -57,13 +57,13 @@ async function postToSession(request: Request, sessionId: string, body: unknown)
 // Reads the session's stream from the saved line and yields reply text until the turn ends or asks for approval.
 async function* readReply(request: Request, chat: Chat): AsyncGenerator<string> {
   const auth = request.headers.get("authorization") ?? "";
-  for (;;) {
+  for (; ;) {
     const res = await fetch(eveUrl(`/eve/v1/session/${chat.sessionId}/stream?startIndex=${chat.cursor}`), {
       headers: { Authorization: auth },
     });
     const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
     let buffer = "";
-    for (;;) {
+    for (; ;) {
       const { value, done } = await reader.read();
       if (done) break; // Connection ended: reconnect from the saved line.
       buffer += value;
@@ -133,11 +133,14 @@ export default defineChannel({
       const created = Math.floor(Date.now() / 1000);
       const model = body.model ?? MODEL_ID;
 
+      // Streams the reply to OpenBot. Sends the role chunk immediately and a keep-alive every 15 seconds, so the client doesn't drop the connection while Eve is slow.
       if (body.stream) {
         const encoder = new TextEncoder();
         const out = new ReadableStream({
           async start(controller) {
             const send = (obj: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+            send({ id, object: "chat.completion.chunk", created, model, choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }] });
+            const keepAlive = setInterval(() => controller.enqueue(encoder.encode(": keep-alive\n\n")), 15000);
             try {
               for await (const delta of respond(request, messages)) {
                 send({ id, object: "chat.completion.chunk", created, model, choices: [{ index: 0, delta: { content: delta }, finish_reason: null }] });
@@ -145,6 +148,8 @@ export default defineChannel({
               send({ id, object: "chat.completion.chunk", created, model, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
             } catch (error) {
               send({ error: { message: String(error) } });
+            } finally {
+              clearInterval(keepAlive);
             }
             controller.enqueue(encoder.encode("data: [DONE]\n\n"));
             controller.close();
