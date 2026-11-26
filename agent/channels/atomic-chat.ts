@@ -1,6 +1,6 @@
 // Lets Atomic Chat talk to the Eve sales agent: one Eve session per chat, with approval prompts answered as yes or no in the chat.
 import { defineChannel, GET, POST } from "eve/channels";
-
+import { isSalesReview } from "../../lib/decision/classify";
 type ChatPart = { type: string; text?: string };
 type ChatMessage = { role: string; content: string | ChatPart[] };
 type ChatRequest = { model?: string; stream?: boolean; messages?: ChatMessage[] };
@@ -97,6 +97,8 @@ async function* respond(request: Request, messages: ChatMessage[]): AsyncGenerat
   const userTexts = messages.filter((m) => m.role === "user").map((m) => textOf(m.content));
   const latest = (userTexts.at(-1) ?? "").trim();
   const key = userTexts[0] ?? latest;
+  const decision = await isSalesReview(latest);
+  console.log("routing", JSON.stringify({ message: latest, ...decision }));
 
   let chat = chats.get(key);
   if (!chat) {
